@@ -1,0 +1,17 @@
+# Stages music engine (Python 3.14). Exact versions: requirements.lock.txt
+librosa
+soundfile
+soxr
+av                      # in-process decoding of m4a/aac/webm
+imageio-ffmpeg          # ffmpeg binary (fallback decoder, yt-dlp post-processing)
+torch                   # CPU wheels: --index-url https://download.pytorch.org/whl/cpu
+torchaudio
+beat-this               # beats + bar starts (CPJKU, 2024)
+demucs                  # stems; on by default only with a GPU (STAGES_STEMS=1 to force)
+onnxruntime             # runtime for basic-pitch
+pretty_midi
+mir_eval
+resampy
+yt-dlp[default]         # YouTube link import
+# basic-pitch pins an old numpy; install it without deps:
+#   pip install --no-deps basic-pitch

@@ -1,0 +1,127 @@
+.page {
+  min-height: 100dvh;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px var(--gutter);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 5;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.name:hover,
+.name:focus {
+  border-color: var(--border);
+  outline: none;
+}
+
+.layout {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px var(--gutter) 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.canvasCol {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.canvasWrap {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  background-size: cover;
+  background-position: center;
+  touch-action: none;
+  user-select: none;
+}
+
+.window {
+  fill: rgba(198, 255, 61, 0.22);
+  stroke: #c6ff3d;
+  stroke-width: 2px;
+  cursor: pointer;
+}
+
+.windowSel {
+  fill: rgba(198, 255, 61, 0.45);
+  stroke: #fff;
+}
+
+.label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.draft {
+  fill: rgba(255, 255, 255, 0.15);
+  stroke: #fff;
+  stroke-width: 2px;
+  stroke-dasharray: 6 4;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.behaviors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 900px) {
+  .layout {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    align-items: start;
+    gap: 32px;
+  }
+
+  .canvasCol {
+    position: sticky;
+    top: 76px;
+  }
+}

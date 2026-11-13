@@ -1,0 +1,42 @@
+.strip {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.block {
+  flex-basis: 0;
+  min-width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--border);
+  background: var(--surface-2);
+  text-align: left;
+  overflow: hidden;
+}
+
+.block[aria-selected="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.blockStage {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.blockMeta {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}

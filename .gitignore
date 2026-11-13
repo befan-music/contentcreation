@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+services/analysis/.venv/
+__pycache__/
+*.pyc
+
+# builds
+apps/web/.next/
+*.tsbuildinfo
+
+# local user data: songs, photos, projects, renders (private, never commit)
+data/
+
+# generated test audio
+services/analysis/tests/songs/
+
+# env
+.env*
+!.env.example

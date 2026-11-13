@@ -1,0 +1,29 @@
+{
+  "name": "@stages/render",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Render worker: project JSON -> MP4 with audio + silent MP4.",
+  "type": "module",
+  "main": "src/render.mjs",
+  "exports": {
+    ".": "./src/render.mjs",
+    "./photos": "./src/photos.mjs",
+    "./songs": "./src/songs.mjs",
+    "./python": "./src/python.mjs",
+    "./paths": "./src/paths.mjs"
+  },
+  "bin": {
+    "stages-render": "src/cli.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.543",
+    "@remotion/renderer": "4.0.543",
+    "@stages/project": "*",
+    "@stages/stages": "*",
+    "heic-convert": "^2.1.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.543",
+    "sharp": "0.35.5"
+  }
+}

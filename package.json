@@ -1,0 +1,33 @@
+{
+  "name": "stages",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Stages: turn a song and a camera roll into a music-driven 9:16 video.",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/render"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @stages/web",
+    "build": "npm run build -w @stages/web",
+    "start": "npm run start -w @stages/web",
+    "studio": "remotion studio packages/stages/src/remotion/index.ts",
+    "render": "node services/render/src/cli.mjs",
+    "test": "node --import tsx --test packages/stages/test/stages.test.ts",
+    "test:analysis": "services/analysis/.venv/Scripts/python services/analysis/tests/evaluate.py services/analysis/tests/songs",
+    "typecheck": "tsc -p packages/project && tsc -p packages/stages && tsc --noEmit -p apps/web",
+    "screenshot": "node scripts/screenshot.mjs"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.543",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "puppeteer-core": "^25.17.0",
+    "tsx": "4.23.15",
+    "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

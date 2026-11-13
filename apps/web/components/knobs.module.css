@@ -1,0 +1,159 @@
+.knobs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px 18px;
+}
+
+.knob {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.knob label {
+  font-weight: 600;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.options button {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.options button[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.range {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.range input {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.range span {
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.color {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color input {
+  width: 40px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+}
+
+.toggle {
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  position: relative;
+  padding: 0;
+}
+
+.toggle span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: left 0.15s, background 0.15s;
+}
+
+.toggle[aria-checked="true"] {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-2));
+  border-color: var(--accent);
+}
+
+.toggle[aria-checked="true"] span {
+  left: 22px;
+  background: var(--accent);
+}
+
+.padWrap {
+  padding: 16px 44px;
+}
+
+.pad {
+  position: relative;
+  aspect-ratio: 1.6;
+  max-width: 360px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(to top, transparent, color-mix(in srgb, var(--accent) 22%, transparent)),
+    linear-gradient(to right, var(--surface-2), color-mix(in srgb, #3fa7ff 20%, var(--surface-2)));
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.dot {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(198, 255, 61, 0.25);
+  pointer-events: none;
+}
+
+.axis {
+  position: absolute;
+  font-size: 11px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.top {
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.bottom {
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.left {
+  left: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.right {
+  right: -32px;
+  top: 50%;
+  transform: translateY(-50%);
+}
