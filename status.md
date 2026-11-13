@@ -19,7 +19,24 @@
 | 9 | Mobile + direct posting | ⛔ Needs Apple/Google developer accounts and TikTok/Meta app review |
 | 10 | Stage platform | ⚪ Not started (the Custom Stage format is already the SDK seed) |
 
-**Added during the build, on request:** songs from **YouTube links** (Tame Impala – Dracula works end to end).
+**Added during the build, on request:**
+- Songs from **YouTube links** (Tame Impala – Dracula, The Weeknd – Save Your Tears work end to end).
+- **Magic Stage** (AI restyling via Higgsfield): built and tested end to end with the local test provider; ⛔ **waiting for a Higgsfield API key** to run against the real API (see below).
+
+## Magic Stage (AI)
+
+Type a style ("minecraft", "anime", "claymation"… or pick a preset), press Generate: every photo is restyled by an image model on Higgsfield. In the video, each bar a photo appears as shot, then a glowing diagonal wipe reveals its styled version on the next beat; the other beats pulse.
+
+- [x] Stage engine: `magic` Stage, `magic-reveal` behavior (pace: every bar / 2 bars / 2 beats), Magic look (wipe + sparkles + push-in + beat punch), knobs (style, reveal mode, pace, intensity, push-in, color)
+- [x] **Non-deterministic generation, deterministic video**: results are stored on each photo under `styleKey(prompt, variation)`, so the export always matches the preview. "New variation" deliberately asks for a fresh take. Different Stage blocks can use different styles (e.g. verse "anime", chorus "minecraft")
+- [x] Higgsfield client ([magic.mjs](services/render/src/magic.mjs)), following [docs.higgsfield.ai](https://docs.higgsfield.ai/docs): `Authorization: Key id:secret` → upload via `/files/generate-upload-url` → `POST /xai/grok-imagine-image-2.0` (or `ideogram/v4.0`) → poll `/requests/{id}/status` → download `images[0].url`. Idempotency key per photo+style (retries never pay twice), 429 back-off, clear errors for bad keys, credits and NSFW refusals
+- [x] Job runner: 3 photos in parallel, saved one by one as they finish, partial failures reported, cost guard (`STAGES_MAGIC_MAX`, default 40)
+- [x] UI: Magic card (✨ AI), Magic panel in Stage and Remix (style input, 8 presets, progress, styled thumbnails, New variation, setup instructions when no key)
+- [x] Render guard: export is refused until every photo has the style (clear message)
+- [x] Tests: 4 new unit tests (15/15 pass); end-to-end [e2e-magic.mjs](scripts/e2e-magic.mjs) passes with the mock provider (6 photos styled, render blocked before and succeeds after)
+- [ ] **Run against the real Higgsfield API**: needs `HIGGSFIELD_KEY` in `apps/web/.env.local`, then `node scripts/higgsfield-check.mjs`
+- [ ] Compare Grok Image 2.0 vs Ideogram 4.0 on real photos (how recognizable the original stays) and pick the default
+- [ ] Later: "Magic motion": animate each styled photo with Higgsfield image-to-video (Kling / Hailuo endpoints exist), much higher cost per video
 
 ### Proof it works
 
@@ -135,6 +152,8 @@ Checked frame by frame against the analysis: bar starts give full-screen photos,
 - **Photos first, then Stage** in the flow, so each Stage previews with the user's own photos.
 - **TypeScript 5.9**, not 7 (TS 7 changed its API; Next.js may not support it yet). Remotion `Html5Audio` + `trimBefore` (the older props are deprecated).
 - **YouTube import was built from scratch**: `GOMI/videogeneration` had no YouTube code.
+- **YouTube downloads are forced to IPv4** (`STAGES_YTDLP_IPV6=1` to allow IPv6). On a network with broken IPv6, Python tries every IPv6 address before falling back, so imports hung for minutes while the browser worked fine. Imports now also give up after 15 s without a network response and show an error after 3 min.
+- **Song changes are guarded twice**: the editor ignores an analysis that belongs to a different song, and the server ignores clip/blocks/sections/hits from a page that hasn't seen the new song. Before this, switching songs could keep the old song's clip.
 
 ## Risks / open items
 

@@ -97,3 +97,80 @@ test("recommendation is Beat Flash without notes", () => {
   const a = { ...demoAnalysis(), notes: [] };
   assert.equal(recommendStage(a, { start: 0, end: 15 }).stageId, "beat-flash");
 });
+
+// Magic -------------------------------------------------------------------------
+import { styleKey, normalizePrompt, missingMagic, magicRequests, buildMagicPrompt } from "../src";
+
+test("magic: style key is stable, normalized, and changes with the variation", () => {
+  assert.equal(styleKey("Minecraft", 0), styleKey("  minecraft ", 0));
+  assert.notEqual(styleKey("minecraft", 0), styleKey("minecraft", 1));
+  assert.notEqual(styleKey("minecraft", 0), styleKey("anime", 0));
+  assert.match(styleKey("minecraft"), /^[0-9a-f]{12}$/);
+  assert.equal(normalizePrompt("  Lego   Bricks "), "lego bricks");
+  assert.match(buildMagicPrompt("minecraft"), /minecraft style/);
+});
+
+test("magic: one new photo per bar, the other beats pulse", () => {
+  const input = demoInput("magic");
+  input.project.stageParams = { prompt: "minecraft" };
+  input.project.photos = Array.from({ length: 5 }, (_, i) => ({ id: `p${i}`, src: `p${i}.jpg`, width: 10, height: 10, focal: { x: 0.5, y: 0.5 } }));
+  const ev = buildTimeline(input).blocks[0].events;
+  const photoEvents = ev.filter((e) => e.showPhoto);
+  assert.equal(ev.length, 30); // every beat is an event
+  assert.equal(photoEvents.length, 8); // one per bar in 15 s at 120 bpm
+  assert.ok(photoEvents.every((e) => e.kind === "full"));
+  assert.deepEqual(photoEvents.slice(0, 6).map((e) => e.photo), [0, 1, 2, 3, 4, 0]);
+  assert.ok(Math.abs(photoEvents[0].dur - 2) < 1e-6); // holds for one bar
+});
+
+test("magic: pace every 2 bars / every 2 beats", () => {
+  const input = demoInput("magic");
+  input.project.stageParams = { prompt: "x", pace: "bar2" };
+  assert.equal(buildTimeline(input).blocks[0].events.filter((e) => e.showPhoto).length, 4);
+  input.project.stageParams = { prompt: "x", pace: "half" };
+  assert.equal(buildTimeline(input).blocks[0].events.filter((e) => e.showPhoto).length, 15);
+});
+
+test("magic: missing styles block the render until every photo has one", () => {
+  const input = demoInput("magic");
+  input.project.stageParams = { prompt: "minecraft", variation: 2 };
+  input.project.photos = [
+    { id: "a", src: "a.jpg", width: 1, height: 1, focal: { x: 0.5, y: 0.5 } },
+    { id: "b", src: "b.jpg", width: 1, height: 1, focal: { x: 0.5, y: 0.5 } },
+  ];
+  const [req] = magicRequests(input.project, input.analysis);
+  assert.equal(req.key, styleKey("minecraft", 2));
+  assert.deepEqual(missingMagic(input.project, input.analysis)[0].photoIds, ["a", "b"]);
+  const style = { src: "s.jpg", prompt: "minecraft", model: "test", createdAt: "" };
+  input.project.photos = input.project.photos.map((p) => ({ ...p, styles: { [req.key]: style } }));
+  assert.equal(missingMagic(input.project, input.analysis).length, 0);
+});
+
+// Cut & Flow --------------------------------------------------------------------
+import { CUT_FLOW_TRANSITIONS, photoHitIndices } from "../src";
+
+test("cut & flow: first photo just appears, then transitions cycle through all four", () => {
+  const input = demoInput("cut-flow");
+  const photoEvents = buildTimeline(input).blocks[0].events.filter((e) => e.showPhoto);
+  assert.equal(photoEvents.length, 8);
+  assert.equal(photoEvents[0].variant, "none");
+  const used = photoEvents.slice(1, 5).map((e) => e.variant);
+  assert.deepEqual([...used].sort(), [...CUT_FLOW_TRANSITIONS].sort());
+  assert.equal(photoEvents[5].variant, photoEvents[1].variant); // cycles
+});
+
+test("cut & flow: a fixed transition is used for every photo", () => {
+  const input = demoInput("cut-flow");
+  input.project.stageParams = { transition: "water" };
+  const v = buildTimeline(input).blocks[0].events.filter((e) => e.showPhoto).map((e) => e.variant);
+  assert.ok(v.slice(1).every((x) => x === "water"));
+});
+
+test("photo hits: every bar / 2 bars / 2 beats / beat", () => {
+  const a = demoAnalysis();
+  const beats = triggerHits(a, { muted: [], added: [] }, 0, 15, "beat", "every").hits;
+  assert.equal(photoHitIndices(beats, "bar").size, 8);
+  assert.equal(photoHitIndices(beats, "bar2").size, 4);
+  assert.equal(photoHitIndices(beats, "half").size, 15);
+  assert.equal(photoHitIndices(beats, "beat").size, 30);
+});

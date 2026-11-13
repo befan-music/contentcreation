@@ -53,6 +53,7 @@ services/analysis/.venv/Scripts/python services/analysis/tests/make_test_songs.p
 npm run test:analysis        # beat/bar/section/note accuracy on songs with ground truth
 node scripts/screenshot.mjs http://localhost:3000/ out.png [--mobile]
 node scripts/e2e-stage-maker.mjs http://localhost:3000 <projectId> <objectPhoto.jpg> out.png
+node scripts/e2e-magic.mjs http://localhost:3000 <song.m4a> <photoDir> minecraft   # app started with STAGES_MAGIC_PROVIDER=mock
 ```
 
 ## Environment variables
@@ -67,3 +68,18 @@ node scripts/e2e-stage-maker.mjs http://localhost:3000 <projectId> <objectPhoto.
 | `STAGES_BROWSER_MODE` | — | `headless-shell` to use Remotion's downloaded shell instead of local Chrome |
 | `STAGES_RENDER_CONCURRENCY` | CPU count | Parallel frames while rendering |
 | `NEXT_PUBLIC_POSTHOG_KEY` / `_HOST` | — | Send funnel events to PostHog instead of `data/events.jsonl` |
+| `HIGGSFIELD_KEY` | — | `<key id>:<secret>` from the Higgsfield Console; turns on the **Magic** Stage. Put it in `apps/web/.env.local` (see `apps/web/.env.example`) |
+| `HIGGSFIELD_IMAGE_MODEL` | `xai/grok-imagine-image-2.0` | Image model for Magic (`ideogram/v4.0` keeps more of the original) |
+| `STAGES_MAGIC_MAX` | `40` | Max photos styled per Generate press (cost guard) |
+| `STAGES_MAGIC_PROVIDER` | — | `mock` = local test filter instead of AI (no credits; clearly labelled) |
+| `STAGES_YTDLP_IPV6` | — | `1` lets YouTube downloads use IPv6 (off by default: broken IPv6 makes them hang) |
+
+## Magic Stage (AI)
+
+1. Create an API key in the [Higgsfield Console](https://console.higgsfield.ai).
+2. `cp apps/web/.env.example apps/web/.env.local` and set `HIGGSFIELD_KEY=<key id>:<secret>`.
+3. Restart the app, then check the key: `node scripts/higgsfield-check.mjs`
+   (add `--style minecraft --photo some.jpg --out styled.jpg` to restyle one photo for real; costs one image).
+4. In the app: Stage → **Magic** → type a style or pick a preset → **Generate**. Each photo becomes one AI image; results are saved per style so the export matches the preview. **New variation** asks the model for a fresh take.
+
+If the dev server starts reloading pages in a loop after a crash or a forced stop, stop it and delete `apps/web/.next`.

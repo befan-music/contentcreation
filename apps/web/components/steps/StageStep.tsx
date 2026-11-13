@@ -5,11 +5,14 @@ import { effectiveSections, resolveClip, type Analysis, type StageDef } from "@s
 import { BUILTIN_STAGES, autoBlocks, recommendStage } from "@stages/stages";
 import { ASSET_BASE, track } from "@/lib/client";
 import type { EditorApi } from "../Editor";
+import { MagicPanel } from "../MagicPanel";
 import s from "./steps.module.css";
 
 const SWATCH: Record<string, string> = {
   "beat-flash": "linear-gradient(135deg, #ffffff 0 55%, #ff5a36 55% 100%)",
   piano: "repeating-linear-gradient(90deg, #f4f4f6 0 14px, #0b0b12 14px 18px)",
+  "cut-flow": "conic-gradient(from 45deg, #3fa7ff 0 25%, #0a0a0c 0 50%, #3fa7ff 0 75%, #0a0a0c 0)",
+  magic: "radial-gradient(circle at 30% 30%, #ffffff 0 6%, transparent 7%), linear-gradient(135deg, #6b2cff, #ff4fa3 55%, #c6ff3d)",
   auto: "conic-gradient(#c6ff3d, #3fa7ff, #ff4fa3, #c6ff3d)",
 };
 
@@ -24,7 +27,7 @@ export function StageStep({ api: editor, analysis, customStages }: { api: Editor
   const selected = isAuto ? "auto" : isMulti ? "multi" : project.stageId;
 
   const pick = (stageId: string) => {
-    update((p) => ({ ...p, stageId, stageParams: {}, blocks: [] }));
+    update((p) => ({ ...p, stageId, stageParams: p.stageId === stageId ? p.stageParams : {}, blocks: [] }));
     track("stage_selected", { projectId: project.id, stageId, recommended: stageId === rec.stageId });
   };
 
@@ -83,6 +86,10 @@ export function StageStep({ api: editor, analysis, customStages }: { api: Editor
         </Link>
       </div>
 
+      {selected === "magic" && (
+        <MagicPanel api={editor} params={project.stageParams} onParams={(patch) => update((p) => ({ ...p, stageParams: { ...p.stageParams, ...patch } }))} />
+      )}
+
       {isMulti && <p className={s.notice}>This video uses different Stages per section (set in Remix). Picking a Stage here replaces them.</p>}
 
       <div className={s.footer}>
@@ -121,9 +128,14 @@ function StageCard({
         <span className={s.stageName}>{stage.name}</span>
         <span className={s.swatch} style={{ background: swatch }} aria-hidden />
       </div>
-      {recommended && (
-        <span className="chip chip-accent" style={{ alignSelf: "flex-start" }} title={recommended}>
-          Recommended
+      {(recommended || stage.id === "magic") && (
+        <span style={{ display: "flex", gap: 6 }}>
+          {recommended && (
+            <span className="chip chip-accent" title={recommended}>
+              Recommended
+            </span>
+          )}
+          {stage.id === "magic" && <span className="chip">✨ AI</span>}
         </span>
       )}
       <span className={s.stageDesc}>{stage.description}</span>

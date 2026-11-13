@@ -4,6 +4,8 @@ import type { VideoInput } from "@stages/project";
 import { BeatFlashLook } from "./looks/BeatFlashLook";
 import { PianoLook } from "./looks/PianoLook";
 import { PhotoStageLook } from "./looks/PhotoStageLook";
+import { MagicLook } from "./looks/MagicLook";
+import { CutFlowLook } from "./looks/CutFlowLook";
 import { assetUrl } from "./looks/PhotoFill";
 import type { LookProps } from "./looks/types";
 import { blockAt, buildTimeline } from "./timeline";
@@ -11,6 +13,8 @@ import { blockAt, buildTimeline } from "./timeline";
 const COMPONENT_LOOKS: Record<string, React.FC<LookProps>> = {
   "beat-flash": BeatFlashLook,
   piano: PianoLook,
+  magic: MagicLook,
+  "cut-flow": CutFlowLook,
 };
 
 /**

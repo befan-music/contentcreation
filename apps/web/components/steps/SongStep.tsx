@@ -140,9 +140,13 @@ export function SongStep({ api: editor, analysisState }: { api: EditorApi; analy
 
 function SongDetails({ api: editor, analysisState, onChange }: { api: EditorApi; analysisState: AnalysisState | null; onChange: () => void }) {
   const { project, update } = editor;
-  const analysis = analysisState?.analysis ?? null;
+  // `wave` may be a preview (waveform only, seconds after import); `analysis` needs beats.
+  const wave = analysisState?.analysis ?? null;
+  const analysis = wave && wave.status !== "preview" ? wave : null;
   const audio = useRef<HTMLAudioElement>(null);
   const [playhead, setPlayhead] = useState<number | null>(null);
+  const [mode, setMode] = useState<"clip" | "song">("clip");
+  const [duration, setDuration] = useState<number | null>(null);
   const clip = analysis ? resolveClip(project, analysis) : null;
 
   useEffect(() => {
@@ -150,8 +154,9 @@ function SongDetails({ api: editor, analysisState, onChange }: { api: EditorApi;
     let raf = 0;
     const tick = () => {
       const a = audio.current;
-      if (!a || !clip) return;
-      if (a.currentTime >= clip.end) {
+      if (!a) return;
+      const end = mode === "clip" && clip ? clip.end : a.duration || Infinity;
+      if (a.currentTime >= end || a.ended) {
         a.pause();
         setPlayhead(null);
         return;
@@ -161,23 +166,25 @@ function SongDetails({ api: editor, analysisState, onChange }: { api: EditorApi;
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playhead !== null, clip?.start, clip?.end]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [playhead !== null, mode, clip?.start, clip?.end]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const playClip = () => {
+  const stop = () => {
+    audio.current?.pause();
+    setPlayhead(null);
+  };
+
+  const play = (from: number, m: "clip" | "song") => {
     const a = audio.current;
-    if (!a || !clip) return;
-    if (playhead !== null) {
-      a.pause();
-      setPlayhead(null);
-      return;
-    }
-    a.currentTime = clip.start;
-    a.play().then(() => setPlayhead(clip.start)).catch(() => {});
+    if (!a) return;
+    setMode(m);
+    a.currentTime = from;
+    a.play().then(() => setPlayhead(from)).catch(() => {});
   };
 
   const status = analysisState?.status ?? "missing";
   const job = analysisState?.job;
   const chorus = analysis && clip ? effectiveSections(project, analysis).find((x) => Math.abs(x.start - clip.start) < 0.3) : null;
+  const total = wave?.duration ?? duration;
 
   return (
     <div className={`card ${s.panel}`}>
@@ -189,20 +196,53 @@ function SongDetails({ api: editor, analysisState, onChange }: { api: EditorApi;
           <div>
             <strong>{project.song!.name}</strong>
             <div className="muted" style={{ fontSize: 13 }}>
-              {analysis ? `${formatTime(analysis.duration)} · ${Math.round(analysis.tempo)} bpm · ${analysis.downbeats.length} bars` : "Analyzing…"}
+              {analysis
+                ? `${formatTime(analysis.duration)} · ${Math.round(analysis.tempo)} bpm · ${analysis.downbeats.length} bars`
+                : total
+                  ? `${formatTime(total)} · finding the beat…`
+                  : "Loading…"}
             </div>
           </div>
         </div>
-        <button className="btn btn-sm" onClick={onChange}>
-          Change song
-        </button>
+        <div className={s.row}>
+          <button
+            className="btn btn-sm"
+            onClick={() => (playhead !== null && mode === "song" ? stop() : play(playhead ?? 0, "song"))}
+            aria-label={playhead !== null && mode === "song" ? "Pause song" : "Play song"}
+          >
+            {playhead !== null && mode === "song" ? "❚❚ Pause" : "▶ Play song"}
+          </button>
+          <button className="btn btn-sm btn-ghost" onClick={onChange}>
+            Change song
+          </button>
+        </div>
       </div>
 
       {status !== "complete" && (
         <Progress
           value={job?.progress ?? 0.05}
-          label={job?.status === "error" ? `Analysis failed: ${job.error}` : status === "partial" ? `Beats and bars ready. ${job?.message ?? "Finding notes"}… (you can keep going)` : job?.message ?? "Listening to the song…"}
+          label={
+            job?.status === "error"
+              ? `Analysis failed: ${job.error}`
+              : status === "partial"
+                ? `Beats and bars ready. ${job?.message ?? "Finding notes"}… (you can keep going)`
+                : status === "preview"
+                  ? `You can listen already. ${job?.message ?? "Finding the beat"}…`
+                  : job?.message ?? "Listening to the song…"
+          }
           pulse={job?.status !== "error"}
+        />
+      )}
+
+      {wave && !analysis && (
+        <Waveform
+          analysis={wave}
+          sections={[]}
+          clip={null}
+          clipLength={project.clipLength}
+          playhead={playhead}
+          onSeek={(t) => (playhead !== null ? play(t, mode) : audio.current && (audio.current.currentTime = t))}
+          onClipChange={() => {}}
         />
       )}
 
@@ -236,7 +276,7 @@ function SongDetails({ api: editor, analysisState, onChange }: { api: EditorApi;
             playhead={playhead}
             onClipChange={(c) => {
               update((p) => ({ ...p, clip: c }));
-              if (audio.current && playhead !== null) audio.current.currentTime = c.start;
+              if (audio.current && playhead !== null && mode === "clip") audio.current.currentTime = c.start;
             }}
           />
           <div className={s.spread}>
@@ -253,8 +293,12 @@ function SongDetails({ api: editor, analysisState, onChange }: { api: EditorApi;
               >
                 Use suggestion
               </button>
-              <button className="btn btn-sm" onClick={playClip} aria-label={playhead !== null ? "Stop" : "Play clip"}>
-                {playhead !== null ? "■ Stop" : "▶ Play clip"}
+              <button
+                className="btn btn-sm"
+                onClick={() => (playhead !== null && mode === "clip" ? stop() : play(clip.start, "clip"))}
+                aria-label={playhead !== null && mode === "clip" ? "Stop" : "Play clip"}
+              >
+                {playhead !== null && mode === "clip" ? "■ Stop" : "▶ Play clip"}
               </button>
             </div>
           </div>
@@ -263,7 +307,13 @@ function SongDetails({ api: editor, analysisState, onChange }: { api: EditorApi;
           )}
         </>
       )}
-      <audio ref={audio} src={`${ASSET_BASE}/${project.song!.src}`} preload="auto" />
+      <audio
+        ref={audio}
+        src={`${ASSET_BASE}/${project.song!.src}`}
+        preload="auto"
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onError={() => setDuration(null)}
+      />
     </div>
   );
 }

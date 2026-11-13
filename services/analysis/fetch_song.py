@@ -2,7 +2,8 @@
 
     python fetch_song.py URL OUT_DIR
 
-Prints one line:  RESULT {"path": ..., "name": ..., ...}   or   ERROR <message>
+Prints:  PROGRESS <0..1> <message>   (live, while downloading)
+         RESULT {"path": ..., "name": ..., ...}   or   ERROR <message>
 """
 
 from __future__ import annotations
@@ -20,8 +21,11 @@ def main() -> int:
         return 2
     from stages_analysis.youtube import fetch
 
+    def progress(p: float, msg: str) -> None:
+        print(f"PROGRESS {p:.3f} {msg}", flush=True)
+
     try:
-        result = fetch(sys.argv[1], sys.argv[2])
+        result = fetch(sys.argv[1], sys.argv[2], on_progress=progress)
     except Exception as e:
         print(f"ERROR {e}", flush=True)
         return 1

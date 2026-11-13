@@ -33,8 +33,12 @@ export type Analysis = {
   version: 1;
   /** sha256 of the uploaded audio file */
   audioHash: string;
-  /** "partial": beats/bars/sections/energy are ready; drums and notes may still be empty. */
-  status: "partial" | "complete";
+  /**
+   * "preview":  only duration, waveform and energy (seconds after upload; the song can be played and seen)
+   * "partial":  beats/bars/sections/clips are ready; drums and notes may still be empty
+   * "complete": everything
+   */
+  status: "preview" | "partial" | "complete";
   duration: number;
   tempo: number;
   beats: number[];
@@ -60,11 +64,16 @@ export type Analysis = {
 // Stages
 // ---------------------------------------------------------------------------
 
-export type ParamDef =
+export type ParamDef = (
   | { key: string; label: string; type: "select"; options: { value: string; label: string }[]; default: string }
   | { key: string; label: string; type: "range"; min: number; max: number; step: number; default: number }
   | { key: string; label: string; type: "color"; default: string }
-  | { key: string; label: string; type: "toggle"; default: boolean };
+  | { key: string; label: string; type: "toggle"; default: boolean }
+  | { key: string; label: string; type: "text"; default: string; placeholder?: string }
+) & {
+  /** stored with the block but not shown as a knob (e.g. Magic's variation counter) */
+  hidden?: boolean;
+};
 
 export type ParamValues = Record<string, string | number | boolean>;
 
@@ -102,6 +111,17 @@ export type Photo = {
   focal: { x: number; y: number };
   /** song time of the hit this photo is pinned to */
   pinnedTo?: number;
+  /** AI-styled versions (Magic Stage), keyed by styleKey(prompt, variation). Written by the server only. */
+  styles?: Record<string, PhotoStyle>;
+};
+
+export type PhotoStyle = {
+  src: string;
+  srcSmall?: string;
+  prompt: string;
+  /** e.g. "higgsfield:xai/grok-imagine-image-2.0" or "mock" */
+  model: string;
+  createdAt: string;
 };
 
 export type StageBlock = {

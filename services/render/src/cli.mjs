@@ -52,14 +52,14 @@ async function makeVideo(args) {
 
   // 1. Song
   progress(0, "Importing song");
-  const stored = /^https?:\/\//.test(args.song) ? await importYouTube(args.song, dataDir) : storeSong(path.resolve(args.song), dataDir);
+  const stored = /^https?:\/\//.test(args.song) ? await importYouTube(args.song, dataDir) : await storeSong(path.resolve(args.song), dataDir);
   const { song } = stored;
   say(`LOG Song: ${song.name} (${song.id.slice(0, 10)})`);
 
   // 2. Analysis (cached by hash)
   let analysis = readAnalysis(dataDir, song.id);
   const wantFull = !args.fast;
-  if (!analysis || (wantFull && analysis.status !== "complete")) {
+  if (!analysis || analysis.status === "preview" || (wantFull && analysis.status !== "complete")) {
     await analyzeSong(stored.path, analysisPath(dataDir, song.id), {
       hash: song.id,
       fast: !wantFull,

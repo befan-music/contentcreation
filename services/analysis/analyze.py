@@ -32,8 +32,8 @@ def main() -> int:
     from stages_analysis.pipeline import analyze, summarize
 
     def progress(p: float, msg: str) -> None:
-        if msg == "PARTIAL":
-            print("PARTIAL", flush=True)
+        if msg in ("PARTIAL", "PREVIEW"):
+            print(msg, flush=True)
         else:
             print(f"PROGRESS {p:.2f} {msg}", flush=True)
 

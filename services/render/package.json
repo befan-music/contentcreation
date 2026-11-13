@@ -10,7 +10,8 @@
     "./photos": "./src/photos.mjs",
     "./songs": "./src/songs.mjs",
     "./python": "./src/python.mjs",
-    "./paths": "./src/paths.mjs"
+    "./paths": "./src/paths.mjs",
+    "./magic": "./src/magic.mjs"
   },
   "bin": {
     "stages-render": "src/cli.mjs"

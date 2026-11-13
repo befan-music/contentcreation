@@ -7,6 +7,7 @@ import { ASSET_BASE, track } from "@/lib/client";
 import type { EditorApi } from "../Editor";
 import { EnergyPad, Knobs } from "../Knobs";
 import { Studio } from "../Studio";
+import { MagicPanel } from "../MagicPanel";
 import s from "./steps.module.css";
 import r from "./remix.module.css";
 
@@ -176,6 +177,10 @@ export function RemixStep({ api: editor, analysis, customStages }: { api: Editor
         {studio && <Studio api={editor} analysis={analysis} customStages={customStages} selectedBlock={sel} onSelectBlock={setSelected} />}
       </div>
 
+      {stage.id === "magic" && (
+        <MagicPanel api={editor} params={values} onParams={(patch) => patchBlock({ params: { ...block.params, ...patch } })} />
+      )}
+
       <div className={`card ${s.panel}`}>
         <div className={s.spread}>
           <strong>Energy</strong>
@@ -186,7 +191,7 @@ export function RemixStep({ api: editor, analysis, customStages }: { api: Editor
         <EnergyPad x={ex} y={ey} onChange={(x, y) => patchParams(energyToParams(x, y, stage))} />
         <details>
           <summary style={{ cursor: "pointer", fontWeight: 600, marginBottom: 12 }}>All knobs</summary>
-          <Knobs defs={stage.params} values={values} onChange={patchParams} />
+          <Knobs defs={stage.id === "magic" ? stage.params.filter((p) => p.type !== "text") : stage.params} values={values} onChange={patchParams} />
         </details>
       </div>
 

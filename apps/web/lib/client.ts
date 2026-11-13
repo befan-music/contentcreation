@@ -66,7 +66,7 @@ export function track(event: string, props: Record<string, unknown> = {}) {
 // Polling hooks ----------------------------------------------------------------
 
 export type AnalysisState = {
-  status: "missing" | "partial" | "complete";
+  status: "missing" | "preview" | "partial" | "complete";
   analysis: Analysis | null;
   job: { status: string; progress: number; message: string; error?: string } | null;
 };

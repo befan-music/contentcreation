@@ -3,10 +3,12 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { Analysis, Project, StageDef } from "@stages/project";
+import { buildMagicPrompt, styleKey } from "@stages/stages/core";
+import { stylizePhoto } from "@stages/render/magic";
 import { REPO_ROOT } from "@stages/render/paths";
 import { analyzeSong } from "@stages/render/python";
 import { analysisPath, importYouTube, readAnalysis } from "@stages/render/songs";
-import { DATA_DIR, newId, updateProject } from "./store";
+import { DATA_DIR, getProject, newId, updateProject } from "./store";
 
 /**
  * In-process job runner (local mode). Jobs: song analysis, YouTube import,
@@ -15,7 +17,7 @@ import { DATA_DIR, newId, updateProject } from "./store";
  * (roadmap: architecture), with progress pushed over Supabase Realtime.
  */
 
-export type JobKind = "analysis" | "import" | "render";
+export type JobKind = "analysis" | "import" | "render" | "magic";
 export type Job = {
   id: string;
   kind: JobKind;
@@ -93,7 +95,7 @@ export function ensureAnalysis(hash: string, songPath: string): Job | null {
   return job;
 }
 
-export function analysisState(hash: string): { status: "missing" | "partial" | "complete"; analysis: Analysis | null; job: Job | null } {
+export function analysisState(hash: string): { status: "missing" | "preview" | "partial" | "complete"; analysis: Analysis | null; job: Job | null } {
   const analysis = readAnalysis(DATA_DIR, hash);
   const job = activeJob("analysis", hash) ?? [...reg.jobs.values()].reverse().find((j) => j.kind === "analysis" && j.key === hash) ?? null;
   return { status: analysis ? analysis.status : "missing", analysis, job };
@@ -104,12 +106,20 @@ export function analysisState(hash: string): { status: "missing" | "partial" | "
 export function startYouTubeImport(projectId: string, url: string): Job {
   const job = newJob("import", projectId);
   job.status = "running";
-  job.message = "Downloading the song";
-  job.progress = 0.1;
+  job.message = "Connecting to YouTube";
+  job.progress = 0.03;
   persist(job);
-  importYouTube(url, DATA_DIR)
+  let lastWrite = 0;
+  importYouTube(url, DATA_DIR, {
+    onProgress: (p, message) => {
+      const now = Date.now();
+      if (now - lastWrite < 250 && p < 0.9) return;
+      lastWrite = now;
+      persist({ ...reg.jobs.get(job.id)!, progress: p, message });
+    },
+  })
     .then(({ song, path: songPath }) => {
-      updateProject(projectId, (p) => ({ ...p, song, clip: null, blocks: [], sections: null, hits: { muted: [], added: [] }, name: p.name === "Untitled video" ? song.name : p.name }));
+      updateProject(projectId, (p) => ({ ...p, song, clip: null, blocks: [], sections: null, hits: { muted: [], added: [] }, name: p.name === "Untitled video" || p.name === p.song?.name ? song.name : p.name }));
       const analysis = ensureAnalysis(song.id, songPath);
       persist({ ...reg.jobs.get(job.id)!, status: "done", progress: 1, message: "Downloaded", result: { song, analysisJob: analysis?.id ?? null } });
     })
@@ -175,4 +185,61 @@ export function startRender(project: Project, analysis: Analysis, customStages: 
   reg.renderQueue = reg.renderQueue.then(run, run);
   persist({ ...job, message: "Queued" });
   return reg.jobs.get(job.id)!;
+}
+
+// Magic (AI restyling) -----------------------------------------------------------
+
+const MAGIC_CONCURRENCY = 3;
+const MAGIC_MAX_PHOTOS = Number(process.env.STAGES_MAGIC_MAX || 40);
+
+/**
+ * Style every photo of a project for (prompt, variation) that doesn't have that
+ * style yet. Results are saved on each photo as they arrive, so a reload or a
+ * failure keeps everything already generated (and paid for).
+ */
+export function startMagic(projectId: string, prompt: string, variation: number): { job: Job; key: string; total: number } {
+  const key = styleKey(prompt, variation);
+  const project = getProject(projectId);
+  if (!project) throw new Error("Project not found");
+  const running = activeJob("magic", `${projectId}:${key}`);
+  const todo = project.photos.filter((p) => !p.styles?.[key]).slice(0, MAGIC_MAX_PHOTOS);
+  if (running) return { job: running, key, total: todo.length };
+
+  const job = newJob("magic", `${projectId}:${key}`);
+  const total = todo.length;
+  persist({ ...job, status: "running", message: total ? `Styling photo 1 of ${total}` : "Already styled", progress: total ? 0.02 : 1 });
+  if (!total) {
+    persist({ ...reg.jobs.get(job.id)!, status: "done", result: { key, generated: 0, failed: [] } });
+    return { job: reg.jobs.get(job.id)!, key, total };
+  }
+
+  const fullPrompt = buildMagicPrompt(prompt);
+  const failed: { photoId: string; reason: string }[] = [];
+  let done = 0;
+  let next = 0;
+  const worker = async () => {
+    while (next < todo.length) {
+      const photo = todo[next++];
+      try {
+        const style = await stylizePhoto({ photo, dataDir: DATA_DIR, prompt, fullPrompt, key });
+        updateProject(projectId, (p) => ({
+          ...p,
+          photos: p.photos.map((ph) => (ph.id === photo.id ? { ...ph, styles: { ...(ph.styles ?? {}), [key]: style } } : ph)),
+        }));
+      } catch (e) {
+        failed.push({ photoId: photo.id, reason: (e as Error).message });
+        // A bad key or missing credits fails every photo the same way: stop early.
+        if (/API key|credits|needs a Higgsfield/.test((e as Error).message)) next = todo.length;
+      }
+      done++;
+      persist({ ...reg.jobs.get(job.id)!, progress: done / total, message: done < total ? `Styling photo ${Math.min(total, done + 1)} of ${total}` : "Finishing" });
+    }
+  };
+  Promise.all(Array.from({ length: Math.min(MAGIC_CONCURRENCY, total) }, worker)).then(() => {
+    const generated = done - failed.length;
+    const j = reg.jobs.get(job.id)!;
+    if (generated === 0 && failed.length) persist({ ...j, status: "error", error: failed[0].reason, result: { key, generated, failed } });
+    else persist({ ...j, status: "done", progress: 1, message: "Done", result: { key, generated, failed } });
+  });
+  return { job: reg.jobs.get(job.id)!, key, total };
 }

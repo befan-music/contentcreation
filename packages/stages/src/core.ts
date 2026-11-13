@@ -9,3 +9,4 @@ export * from "./behaviors";
 export * from "./registry";
 export * from "./timeline";
 export * from "./demo";
+export * from "./magic";

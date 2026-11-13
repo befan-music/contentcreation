@@ -25,6 +25,8 @@ export type WindowEvent = {
   showPhoto: boolean;
   /** index into project.photos, filled in by assignPhotos */
   photo: number;
+  /** look-specific flavor of this event, e.g. the transition that brings the photo in */
+  variant?: string;
 };
 
 export type BehaviorContext = {
@@ -207,8 +209,91 @@ export const barHit: Behavior = {
   },
 };
 
+/**
+ * Magic: a new photo on each photo hit (every bar by default). The look shows
+ * it as shot, then reveals its AI-styled version on the next beat. Every beat
+ * in between is a pulse ("flash" events without a new photo).
+ */
+export const magicReveal: Behavior = {
+  id: "magic-reveal",
+  name: "Magic reveal",
+  description: "Each bar a new photo appears, then turns into its AI-styled version on the next beat.",
+  defaultTrigger: "beat",
+  generate(ctx) {
+    return photoPerPace(ctx, () => undefined);
+  },
+};
+
+/**
+ * Which beats bring a new photo. pace: "bar" (every bar), "bar2" (every 2
+ * bars), "half" (every 2 beats, re-aligned on each bar), "beat" (every beat).
+ * The first beat of a block always brings a photo.
+ */
+export function photoHitIndices(beats: Hit[], pace: string): Set<number> {
+  const isPhotoHit = new Set<number>();
+  let barCount = 0;
+  let sinceBar = -1;
+  beats.forEach((b, i) => {
+    sinceBar = b.bar ? 0 : sinceBar >= 0 ? sinceBar + 1 : -1;
+    if (i === 0) {
+      isPhotoHit.add(i);
+      if (b.bar) barCount = 1;
+      return;
+    }
+    if (pace === "beat") isPhotoHit.add(i);
+    else if (pace === "half") {
+      if (b.bar || (sinceBar >= 0 && sinceBar % 2 === 0)) isPhotoHit.add(i);
+    } else if (b.bar) {
+      barCount++;
+      if (pace === "bar" || barCount % 2 === 1) isPhotoHit.add(i);
+    }
+  });
+  return isPhotoHit;
+}
+
+/** Every beat is an event; photo hits ("full") bring the next photo, the rest ("flash") are pulses. */
+function photoPerPace(ctx: BehaviorContext, variantFor: (photoNumber: number) => string | undefined): BehaviorResult {
+  const pace = str(ctx.params, "pace", "bar");
+  const { hits: beats, fellBack } = triggerHits(ctx.analysis, ctx.edits, ctx.block.start, ctx.block.end, "beat", "every");
+  const isPhotoHit = photoHitIndices(beats, pace);
+  const photoTimes = beats.filter((_, i) => isPhotoHit.has(i)).map((b) => b.t);
+  const nextPhotoAfter = (t: number) => photoTimes.find((x) => x > t + 1e-6) ?? ctx.block.end;
+  const d = gaps(beats, ctx.block.end);
+  let n = 0;
+  const events = beats.map((b, i) =>
+    isPhotoHit.has(i)
+      ? ev(ctx.block.id, i, { t: b.t, dur: nextPhotoAfter(b.t) - b.t, window: 0, kind: "full", velocity: b.velocity, showPhoto: true, variant: variantFor(n++) })
+      : ev(ctx.block.id, i, { t: b.t, dur: d[i], window: 0, kind: "flash", velocity: b.velocity, showPhoto: false }),
+  );
+  return { events, fellBack };
+}
+
+export const CUT_FLOW_TRANSITIONS = ["pieces", "zoom-in", "water", "zoom-out"] as const;
+export type CutFlowTransition = (typeof CUT_FLOW_TRANSITIONS)[number] | "none";
+
+/**
+ * Cut & Flow: a new photo on each photo hit, carried in by a transition from
+ * the previous one: cut pieces (falling away beat by beat during the bar
+ * before), zoom in, zoom out or water flow. "mix" cycles through all four.
+ */
+export const cutFlow: Behavior = {
+  id: "cut-flow",
+  name: "Cut & Flow",
+  description: "Each photo is cut into pieces, zoomed through or washed away on the beat to reveal the next one.",
+  defaultTrigger: "beat",
+  generate(ctx) {
+    const mode = str(ctx.params, "transition", "mix");
+    const start = Math.floor(random(`${ctx.seed}:cut-flow-start`) * CUT_FLOW_TRANSITIONS.length);
+    return photoPerPace(ctx, (n) => {
+      if (n === 0) return "none"; // the first photo of a block just appears
+      if (mode !== "mix" && (CUT_FLOW_TRANSITIONS as readonly string[]).includes(mode)) return mode;
+      return CUT_FLOW_TRANSITIONS[(start + n - 1) % CUT_FLOW_TRANSITIONS.length];
+    });
+  },
+};
+
 export const BEHAVIORS: Record<string, Behavior> = Object.fromEntries(
-  [beatFlash, piano, likePiano, beatOrder, randomOrder, barHit].map((b) => [b.id, b]),
+  [beatFlash, piano, likePiano, beatOrder, randomOrder, barHit, magicReveal, cutFlow].map((b) => [b.id, b]),
 );
 
 /** Behaviors a user can pick for a Custom Stage. */

@@ -41,7 +41,7 @@ export async function POST(req: Request, { params }: Ctx) {
   fs.writeFileSync(tmp, Buffer.from(await file.arrayBuffer()));
   try {
     const name = path.basename(file.name, ext);
-    const { song, path: songPath } = storeSong(tmp, DATA_DIR, { name, move: true });
+    const { song, path: songPath } = await storeSong(tmp, DATA_DIR, { name, move: true });
     const project = updateProject(id, (p) => ({
       ...p,
       song,
@@ -49,7 +49,7 @@ export async function POST(req: Request, { params }: Ctx) {
       blocks: [],
       sections: null,
       hits: { muted: [], added: [] },
-      name: p.name === "Untitled video" ? name : p.name,
+      name: p.name === "Untitled video" || p.name === p.song?.name ? name : p.name,
     }));
     const job = ensureAnalysis(song.id, songPath);
     return NextResponse.json({ project, analysisJob: job?.id ?? null });

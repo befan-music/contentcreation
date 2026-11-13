@@ -53,6 +53,33 @@ def analyze(path: str, out_path: str | None, audio_hash: str | None = None, prog
         raise ValueError("Song is shorter than 3 seconds.")
     timings["decode"] = time.time() - t0
 
+    # Pass 0 (instant): waveform + loudness, so the song can be seen and played right away.
+    energy = energy_curve(y, SR)
+    waveform = waveform_peaks(y, SR)
+    if out_path:
+        write_json(
+            out_path,
+            {
+                "version": ANALYSIS_VERSION,
+                "audioHash": audio_hash or sha256_file(path),
+                "status": "preview",
+                "duration": round(duration, 3),
+                "tempo": 0,
+                "beats": [],
+                "downbeats": [],
+                "meter": 4,
+                "sections": [],
+                "notes": [],
+                "drums": [],
+                "energy": {"hop": ENERGY_HOP, "values": energy},
+                "waveform": {"hop": WAVEFORM_HOP, "peaks": waveform},
+                "suggestedClips": {},
+                "engines": {},
+                "warnings": [],
+            },
+        )
+    progress(0.06, "PREVIEW")
+
     progress(0.08, "Finding the beat")
     t = time.time()
     beats, downbeats, beat_engine = detect_beats(y, SR, warnings)
@@ -66,7 +93,6 @@ def analyze(path: str, out_path: str | None, audio_hash: str | None = None, prog
     sections = detect_sections(y, SR, downbeats, duration)
     timings["sections"] = time.time() - t
 
-    energy = energy_curve(y, SR)
     result = {
         "version": ANALYSIS_VERSION,
         "audioHash": audio_hash or sha256_file(path),
@@ -80,7 +106,7 @@ def analyze(path: str, out_path: str | None, audio_hash: str | None = None, prog
         "notes": [],
         "drums": [],
         "energy": {"hop": ENERGY_HOP, "values": energy},
-        "waveform": {"hop": WAVEFORM_HOP, "peaks": waveform_peaks(y, SR)},
+        "waveform": {"hop": WAVEFORM_HOP, "peaks": waveform},
         "suggestedClips": suggest_clips(duration, downbeats, energy, sections),
         "engines": {"beats": beat_engine, "downbeats": beat_engine, "sections": "bar-novelty"},
         "warnings": warnings,

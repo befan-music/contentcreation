@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { ANALYSIS_DIR, pythonExe } from "./paths.mjs";
 
-function run(script, args, { onLine } = {}) {
+function run(script, args, { onLine, timeoutMs, timeoutMessage } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(pythonExe(), [path.join(ANALYSIS_DIR, script), ...args], {
       cwd: ANALYSIS_DIR,
@@ -15,6 +15,12 @@ function run(script, args, { onLine } = {}) {
     });
     let error = null;
     let result = null;
+    const timer = timeoutMs
+      ? setTimeout(() => {
+          error = timeoutMessage || `${script} timed out`;
+          child.kill();
+        }, timeoutMs)
+      : null;
     let buffer = "";
     const stderr = [];
     child.stdout.setEncoding("utf8");
@@ -36,6 +42,7 @@ function run(script, args, { onLine } = {}) {
     });
     child.on("error", reject);
     child.on("close", (code) => {
+      if (timer) clearTimeout(timer);
       if (code === 0 && !error) resolve(result);
       else reject(new Error(error || `${script} exited with code ${code}: ${stderr.join("").slice(-500)}`));
     });
@@ -62,6 +69,15 @@ export function analyzeSong(songPath, outJson, { hash, fast = false, onProgress,
 }
 
 /** Download a song's audio from a YouTube link into outDir. Resolves to {path, name, title, artist, duration, videoId}. */
-export function fetchYouTube(url, outDir) {
-  return run("fetch_song.py", [url, outDir]);
+export function fetchYouTube(url, outDir, { onProgress } = {}) {
+  return run("fetch_song.py", [url, outDir], {
+    timeoutMs: 180_000,
+    timeoutMessage: "YouTube didn't respond within 3 minutes. Check the connection and try again, or upload the audio file instead.",
+    onLine(line) {
+      if (line.startsWith("PROGRESS ")) {
+        const [, p, ...msg] = line.split(" ");
+        onProgress?.(Number(p), msg.join(" "));
+      }
+    },
+  });
 }

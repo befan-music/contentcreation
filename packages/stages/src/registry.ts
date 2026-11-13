@@ -48,7 +48,95 @@ export const PIANO: StageDef = {
   ],
 };
 
-export const BUILTIN_STAGES: StageDef[] = [BEAT_FLASH, PIANO];
+export const MAGIC: StageDef = {
+  id: "magic",
+  name: "Magic",
+  description: "AI restyles your photos in any style you type (e.g. “minecraft”). Each bar a photo appears, then turns into its styled version on the beat.",
+  source: "builtin",
+  look: { kind: "component", component: "magic" },
+  behavior: "magic-reveal",
+  params: [
+    { key: "prompt", label: "Style", type: "text", default: "", placeholder: "minecraft, anime, claymation…" },
+    { key: "variation", label: "Variation", type: "range", min: 0, max: 999, step: 1, default: 0, hidden: true },
+    {
+      key: "reveal",
+      label: "Reveal",
+      type: "select",
+      options: [
+        { value: "beat", label: "On the next beat" },
+        { value: "alternate", label: "Flip every beat" },
+        { value: "styled", label: "Styled only" },
+      ],
+      default: "beat",
+    },
+    {
+      key: "pace",
+      label: "Photo change",
+      type: "select",
+      options: [
+        { value: "bar", label: "Every bar" },
+        { value: "bar2", label: "Every 2 bars" },
+        { value: "half", label: "Every 2 beats" },
+      ],
+      default: "bar",
+    },
+    intensity,
+    { key: "motion", label: "Slow push-in", type: "toggle", default: true },
+    { key: "glow", label: "Magic color", type: "color", default: "#c6ff3d" },
+  ],
+};
+
+export const CUT_FLOW: StageDef = {
+  id: "cut-flow",
+  name: "Cut & Flow",
+  description: "Each photo is cut into pieces, zoomed through or washed away by water on the beat, revealing the next one.",
+  source: "builtin",
+  look: { kind: "component", component: "cut-flow" },
+  behavior: "cut-flow",
+  params: [
+    {
+      key: "transition",
+      label: "Transition",
+      type: "select",
+      options: [
+        { value: "mix", label: "All, mixed" },
+        { value: "pieces", label: "Cut pieces" },
+        { value: "zoom-in", label: "Zoom in" },
+        { value: "zoom-out", label: "Zoom out" },
+        { value: "water", label: "Water flow" },
+      ],
+      default: "mix",
+    },
+    {
+      key: "pace",
+      label: "Photo change",
+      type: "select",
+      options: [
+        { value: "bar", label: "Every bar" },
+        { value: "bar2", label: "Every 2 bars" },
+        { value: "half", label: "Every 2 beats" },
+      ],
+      default: "bar",
+    },
+    {
+      key: "shape",
+      label: "Piece shape",
+      type: "select",
+      options: [
+        { value: "mix", label: "Mixed" },
+        { value: "grid", label: "Squares" },
+        { value: "shards", label: "Shards" },
+        { value: "strips", label: "Strips" },
+      ],
+      default: "mix",
+    },
+    intensity,
+    { key: "motion", label: "Slow push-in", type: "toggle", default: true },
+    { key: "background", label: "Background", type: "color", default: "#000000" },
+  ],
+};
+
+export const BUILTIN_STAGES: StageDef[] = [BEAT_FLASH, PIANO, MAGIC, CUT_FLOW];
 
 /** Params every Custom Stage gets, whatever its behavior. */
 export function customStageParams(behavior: string): ParamDef[] {
@@ -94,6 +182,7 @@ export function withDefaults(stage: StageDef, params: ParamValues): ParamValues 
 export function energyToParams(x: number, y: number, stage: StageDef): ParamValues {
   const out: ParamValues = { intensity: Math.round(Math.min(1, Math.max(0, y)) * 20) / 20, energyX: x, energyY: y };
   if (stage.params.some((p) => p.key === "density")) out.density = x < 0.33 ? "bar" : x < 0.66 ? "half" : "every";
+  if (stage.params.some((p) => p.key === "pace")) out.pace = x < 0.33 ? "bar2" : x < 0.75 ? "bar" : "half";
   if (stage.id === "piano") out.rise = Math.round((3.4 - 2 * x) * 10) / 10;
   return out;
 }

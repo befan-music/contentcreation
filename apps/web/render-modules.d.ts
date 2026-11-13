@@ -21,10 +21,19 @@ declare module "@stages/render/songs" {
   import type { Analysis, Song } from "@stages/project";
   export const AUDIO_EXTS: string[];
   export function hashFile(file: string): string;
-  export function storeSong(srcPath: string, dataDir: string, opts?: { name?: string; move?: boolean }): { song: Song; path: string };
-  export function importYouTube(url: string, dataDir: string): Promise<{ song: Song; path: string; meta: { title: string; artist: string; duration: number | null; videoId: string; name: string } }>;
+  export function storeSong(srcPath: string, dataDir: string, opts?: { name?: string; move?: boolean }): Promise<{ song: Song; path: string; converted: boolean }>;
+  export function probeAudioCodec(file: string): Promise<string | null>;
+  export function isUniversallyPlayable(ext: string, codec: string | null): boolean;
+  export function importYouTube(url: string, dataDir: string, opts?: { onProgress?: (p: number, message: string) => void }): Promise<{ song: Song; path: string; meta: { title: string; artist: string; duration: number | null; videoId: string; name: string } }>;
   export function analysisPath(dataDir: string, hash: string): string;
   export function readAnalysis(dataDir: string, hash: string): Analysis | null;
+}
+
+declare module "@stages/render/magic" {
+  import type { PhotoStyle } from "@stages/project";
+  export function magicConfig(): { provider: "higgsfield" | "mock" | "none"; model: string; configured: boolean };
+  export function stylizePhoto(o: { photo: { id: string; src: string }; dataDir: string; prompt: string; fullPrompt: string; key: string }): Promise<PhotoStyle>;
+  export function checkHiggsfield(): Promise<{ ok: boolean; provider: string; model?: string; message: string }>;
 }
 
 declare module "@stages/render/python" {
@@ -33,5 +42,5 @@ declare module "@stages/render/python" {
     outJson: string,
     opts?: { hash?: string; fast?: boolean; onProgress?: (p: number, message: string) => void; onPartial?: () => void },
   ): Promise<unknown>;
-  export function fetchYouTube(url: string, outDir: string): Promise<unknown>;
+  export function fetchYouTube(url: string, outDir: string, opts?: { onProgress?: (p: number, message: string) => void }): Promise<unknown>;
 }

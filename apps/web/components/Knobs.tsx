@@ -8,7 +8,7 @@ import styles from "./knobs.module.css";
 export function Knobs({ defs, values, onChange }: { defs: ParamDef[]; values: ParamValues; onChange: (patch: ParamValues) => void }) {
   return (
     <div className={styles.knobs}>
-      {defs.map((d) => {
+      {defs.filter((d) => !d.hidden).map((d) => {
         const v = values[d.key] ?? d.default;
         const id = `knob-${d.key}`;
         return (
@@ -34,6 +34,9 @@ export function Knobs({ defs, values, onChange }: { defs: ParamDef[]; values: Pa
                 <input id={id} type="color" value={String(v)} onChange={(e) => onChange({ [d.key]: e.target.value })} />
                 <span className="muted">{String(v)}</span>
               </div>
+            )}
+            {d.type === "text" && (
+              <input id={id} className="input" style={{ minHeight: 36 }} value={String(v)} placeholder={d.placeholder} maxLength={200} onChange={(e) => onChange({ [d.key]: e.target.value })} />
             )}
             {d.type === "toggle" && (
               <button id={id} className={styles.toggle} role="switch" aria-checked={Boolean(v)} onClick={() => onChange({ [d.key]: !v })}>

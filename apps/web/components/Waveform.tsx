@@ -15,17 +15,19 @@ const SECTION_COLORS: Record<string, string> = {
 type Props = {
   analysis: Analysis;
   sections: Section[];
-  clip: Clip;
+  /** null = no clip window yet (preview): the waveform just seeks */
+  clip: Clip | null;
   clipLength: number;
   playhead?: number | null;
   onClipChange: (clip: Clip) => void;
+  onSeek?: (t: number) => void;
 };
 
 /**
  * The whole song as a waveform with sections and bar ticks. The highlighted
  * window is the clip: drag it (it snaps to bars) or tap anywhere to move it there.
  */
-export function Waveform({ analysis, sections, clip, clipLength, playhead, onClipChange }: Props) {
+export function Waveform({ analysis, sections, clip, clipLength, playhead, onClipChange, onSeek }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
@@ -71,7 +73,7 @@ export function Waveform({ analysis, sections, clip, clipLength, playhead, onCli
       let m = 0;
       for (let i = a; i < b && i < peaks.length; i++) m = Math.max(m, peaks[i]);
       const t = (px / width) * dur;
-      const inClip = t >= clip.start && t <= clip.end;
+      const inClip = clip ? t >= clip.start && t <= clip.end : true;
       ctx.fillStyle = inClip ? "#f4f4f6" : "#4a4a56";
       const h = Math.max(1, m * amp);
       ctx.fillRect(px, mid - h, 1, h * 2);
@@ -85,11 +87,13 @@ export function Waveform({ analysis, sections, clip, clipLength, playhead, onCli
     });
 
     // clip window
+    if (clip) {
     ctx.fillStyle = "rgba(198,255,61,0.10)";
     ctx.fillRect(x(clip.start), stripH, x(clip.end) - x(clip.start), height - stripH);
     ctx.strokeStyle = "#c6ff3d";
     ctx.lineWidth = 2;
     ctx.strokeRect(x(clip.start) + 1, stripH + 1, x(clip.end) - x(clip.start) - 2, height - stripH - 2);
+    }
 
     if (playhead != null) {
       ctx.fillStyle = "#fff";
@@ -111,9 +115,10 @@ export function Waveform({ analysis, sections, clip, clipLength, playhead, onCli
         aria-label="Clip position in the song"
         aria-valuemin={0}
         aria-valuemax={Math.round(analysis.duration)}
-        aria-valuenow={Math.round(clip.start)}
+        aria-valuenow={Math.round(clip?.start ?? playhead ?? 0)}
         tabIndex={0}
         onKeyDown={(e) => {
+          if (!clip) return;
           const bars = analysis.downbeats;
           const i = bars.findIndex((d) => d >= clip.start - 0.05);
           if (e.key === "ArrowRight") onClipChange(clipFrom(bars[Math.min(bars.length - 1, i + 1)] ?? clip.start, clipLength, analysis));
@@ -122,6 +127,10 @@ export function Waveform({ analysis, sections, clip, clipLength, playhead, onCli
         onPointerDown={(e) => {
           (e.target as HTMLElement).setPointerCapture(e.pointerId);
           const t = timeAt(e.clientX);
+          if (!clip) {
+            onSeek?.(t);
+            return;
+          }
           if (t >= clip.start && t <= clip.end) drag.current = { offset: t - clip.start };
           else {
             drag.current = { offset: clipLength / 2 };
@@ -129,7 +138,7 @@ export function Waveform({ analysis, sections, clip, clipLength, playhead, onCli
           }
         }}
         onPointerMove={(e) => {
-          if (!drag.current) return;
+          if (!drag.current || !clip) return;
           const next = clipFrom(timeAt(e.clientX) - drag.current.offset, clipLength, analysis);
           if (Math.abs(next.start - clip.start) > 0.01) onClipChange(next);
         }}

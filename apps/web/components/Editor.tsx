@@ -23,6 +23,8 @@ export type EditorApi = {
   update: (fn: (p: Project) => Project) => void;
   /** replace with a project returned by the server (song/photo uploads) */
   replace: (p: Project) => void;
+  /** merge server-owned data (e.g. AI styles) without an undo step or a save */
+  patchLocal: (fn: (p: Project) => Project) => void;
   go: (s: Step) => void;
   preview: React.RefObject<PreviewHandle | null>;
 };
@@ -39,8 +41,13 @@ export function Editor({ initialProject, initialStep, customStages: initialStage
   const latest = useRef(project);
   latest.current = project;
 
-  const analysisState = useAnalysis(project.song?.id);
-  const analysis = analysisState?.analysis ?? null;
+  const rawAnalysisState = useAnalysis(project.song?.id);
+  // Right after a song change the hook still holds the previous song's analysis
+  // for one render. Never use an analysis that belongs to another song (it used
+  // to freeze the old song's clip onto the new one).
+  const analysisState = rawAnalysisState && rawAnalysisState.analysis && rawAnalysisState.analysis.audioHash !== project.song?.id ? null : rawAnalysisState;
+  // A "preview" analysis (waveform only) is shown on the Song step; everything else needs beats.
+  const analysis = analysisState?.analysis && analysisState.analysis.status !== "preview" ? analysisState.analysis : null;
 
   const scheduleSave = useCallback(() => {
     clearTimeout(saveTimer.current);
@@ -74,6 +81,8 @@ export function Editor({ initialProject, initialStep, customStages: initialStage
     history.current = { past: [], future: [] };
     setProject(p);
   }, []);
+
+  const patchLocal = useCallback((fn: (p: Project) => Project) => setProject(fn), []);
 
   const undo = useCallback(() => {
     const prev = history.current.past.pop();
@@ -138,7 +147,7 @@ export function Editor({ initialProject, initialStep, customStages: initialStage
     export: !!project.song && project.photos.length > 0 && !!analysis,
   };
 
-  const editorApi: EditorApi = { project, update, replace, go, preview };
+  const editorApi: EditorApi = { project, update, replace, patchLocal, go, preview };
   const showPreview = (step === "stage" || step === "remix") && !!analysis;
   const previewNode = useMemo(
     () => (analysis ? <Preview ref={preview} project={project} analysis={analysis} customStages={customStages} /> : null),
