@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { Project } from "@stages/project";
 import { ASSET_BASE, track, uploadForm } from "@/lib/client";
 import type { EditorApi } from "../Editor";
+import { PhotoSearch } from "./PhotoSearch";
 import { Progress } from "./SongStep";
 import s from "./steps.module.css";
 
@@ -35,6 +36,7 @@ export function PhotosStep({ api: editor, minPhotos }: { api: EditorApi; minPhot
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
 
   async function addFiles(list: FileList | File[]) {
     const files = [...list].filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
@@ -101,11 +103,30 @@ export function PhotosStep({ api: editor, minPhotos }: { api: EditorApi; minPhot
         <span className="muted" style={{ fontSize: 13 }}>
           JPG, PNG, HEIC from your camera roll
         </span>
-        <button className="btn" disabled={progress !== null} onClick={() => input.current?.click()}>
-          Choose photos
-        </button>
+        <div className={s.row} style={{ justifyContent: "center" }}>
+          <button className="btn" disabled={progress !== null} onClick={() => input.current?.click()}>
+            Choose photos
+          </button>
+          <button className="btn" disabled={progress !== null} onClick={() => camera.current?.click()} title="Opens the camera on a phone">
+            Take a photo
+          </button>
+        </div>
         <input ref={input} type="file" accept="image/*,.heic,.heif" multiple hidden onChange={(e) => e.target.files && addFiles(e.target.files)} />
+        {/* capture= opens the camera directly on phones; on a laptop it falls back to the file picker */}
+        <input
+          ref={camera}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          hidden
+          onChange={(e) => {
+            if (e.target.files) addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
       </div>
+
+      <PhotoSearch projectId={project.id} room={Math.max(0, 80 - n)} onAdded={replace} />
 
       {progress !== null && <Progress value={progress} label={`Uploading… ${Math.round(progress * 100)}%`} />}
       {error && <p className="error">{error}</p>}

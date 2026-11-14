@@ -113,6 +113,8 @@ export type Photo = {
   pinnedTo?: number;
   /** AI-styled versions (Magic Stage), keyed by styleKey(prompt, variation). Written by the server only. */
   styles?: Record<string, PhotoStyle>;
+  /** set when the photo came from the online image search (openly licensed; needs credit) */
+  credit?: PhotoCredit;
 };
 
 export type PhotoStyle = {
@@ -122,6 +124,18 @@ export type PhotoStyle = {
   /** e.g. "higgsfield:xai/grok-imagine-image-2.0" or "mock" */
   model: string;
   createdAt: string;
+};
+
+export type PhotoCredit = {
+  title: string;
+  creator: string;
+  /** short license name, e.g. "CC BY 2.0" */
+  license: string;
+  licenseUrl?: string;
+  /** page where the photo was found */
+  sourceUrl: string;
+  /** "Openverse (flickr)", "Wikimedia Commons"… */
+  provider: string;
 };
 
 export type StageBlock = {
