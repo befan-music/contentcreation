@@ -27,10 +27,13 @@ export async function PUT(req: Request, { params }: Ctx) {
     // the song is only changed through the song endpoint
     song: current.song,
     ...(staleSong ? { clip: current.clip, blocks: current.blocks, sections: current.sections, hits: current.hits } : {}),
-    // photos can be reordered/removed/pinned, but not invented; AI styles are server-owned
+    // photos can be reordered/removed/pinned, but not invented; AI styles and search credits are server-owned
     photos: incoming.photos
       .filter((p) => current.photos.some((c) => c.id === p.id))
-      .map((p) => ({ ...p, styles: current.photos.find((c) => c.id === p.id)?.styles })),
+      .map((p) => {
+        const c = current.photos.find((x) => x.id === p.id);
+        return { ...p, styles: c?.styles, credit: c?.credit };
+      }),
   });
   return NextResponse.json(saved);
 }

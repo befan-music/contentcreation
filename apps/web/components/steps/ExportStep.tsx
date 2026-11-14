@@ -50,6 +50,9 @@ export function ExportStep({ api: editor, analysis, customStages }: { api: Edito
   const stageNames = project.blocks.length ? [...new Set(project.blocks.map((b) => findStage(b.stageId, customStages).name))].join(" + ") : findStage(project.stageId, customStages).name;
   const fileBase = project.name.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 50) || "stages-video";
   const renderedClip = result?.clip ?? clip;
+  const [copied, setCopied] = useState(false);
+  const credits = project.photos.flatMap((p) => (p.credit ? [p.credit] : []));
+  const creditText = ["Photos:", ...credits.map((c) => `• "${c.title}" by ${c.creator} (${c.license}) ${c.sourceUrl}`)].join("\n");
 
   return (
     <section className={s.step}>
@@ -120,6 +123,26 @@ export function ExportStep({ api: editor, analysis, customStages }: { api: Edito
                 Rendered in {Math.round(result.seconds)} s
               </span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {credits.length > 0 && (
+        <div className={`card ${s.panel}`}>
+          <strong>Photo credits</strong>
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            {credits.length} photo{credits.length === 1 ? "" : "s"} came from the online search. Their licenses ask for a credit: paste this into your caption or bio link.
+          </p>
+          <textarea className={s.credits} readOnly value={creditText} onFocus={(e) => e.target.select()} aria-label="Photo credits" />
+          <div className={s.row}>
+            <button
+              className="btn"
+              onClick={() => {
+                navigator.clipboard?.writeText(creditText).then(() => setCopied(true), () => {});
+              }}
+            >
+              {copied ? "Copied ✓" : "Copy credits"}
+            </button>
           </div>
         </div>
       )}
